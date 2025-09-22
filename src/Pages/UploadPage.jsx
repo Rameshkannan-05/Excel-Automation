@@ -1,38 +1,93 @@
-import React from "react";
+import React, { useState } from "react";
 import Layout from "../Components/Layouts";
 
 function UploadPage() {
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const handleFileChange = (e) => {
+    setSelectedFiles([...e.target.files]);
+    setMessage(""); // Clear previous messages when selecting new files
+  };
+
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) {
+      setMessage("Please select at least one file");
+      return;
+    }
+
+    const formData = new FormData();
+    selectedFiles.forEach((file) => formData.append("files", file));
+
+    try {
+      setUploading(true);
+      setMessage(""); // Clear previous messages during upload
+
+      const res = await fetch(
+        "http://127.0.0.1:8001/upload?session_id=default",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage(
+          `Upload successful! Loaded ${data.row_count} rows into session 'default'. You can now search in the chat page.`
+        );
+      } else {
+        setMessage(`Upload failed: ${data.detail || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        "Error uploading file. Ensure the backend server is running on http://127.0.0.1:8001."
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <Layout>
-      <div className="flex justify-center px-4 sm:px-10">
-        <div className="w-full max-w-7xl rounded-2xl">
-          <div className="container px-2 sm:px-6 py-8 mx-auto">
-            <h1 className="text-2xl font-semibold text-center text-gray-800 capitalize lg:text-3xl dark:text-white">
-              Upload File
-            </h1>
+      <div className="flex flex-col items-center justify-center px-4 py-8 min-h-screen">
+        <h1 className="text-2xl font-bold mb-4 text-gray-800">
+          Upload Excel File
+        </h1>
+        <p className="text-sm text-gray-600 mb-4">
+          Supported: .xlsx files (with standard weld point data structure)
+        </p>
 
-            <p className="max-w-2xl mx-auto mt-4 text-center text-gray-500 xl:mt-6 dark:text-gray-300">
-              Upload .xlsx or .csv files with respective forms
-            </p>
+        <input
+          type="file"
+          multiple
+          accept=".xlsx" // Focused on .xlsx for pd.read_excel(); add .csv if backend is updated
+          onChange={handleFileChange}
+          className="mb-4 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-6 xl:mt-12">
-              {["Small", "Medium", "Large"].map((size) => (
-                <div
-                  key={size}
-                  className="w-full p-6 sm:p-8 space-y-6 text-center border border-gray-200 rounded-lg dark:border-gray-700 bg-gray-500 hover:border-amber-400 hover:shadow-lg hover:scale-105 transform transition duration-300 hover:bg-gray-400"
-                >
-                  <p className="font-medium text-black uppercase">{size}</p>
-                  <p>upload {size.toLowerCase()} sized files</p>
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx"
-                    className="w-full px-4 py-2 mt-3 text-white bg-black rounded-md cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-white file:text-black hover:file:bg-gray-300"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={handleUpload}
+          disabled={uploading || selectedFiles.length === 0}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+          {uploading ? "Uploading..." : "Upload Files"}
+        </button>
+
+        {message && (
+          <p
+            className={`mt-4 text-center px-4 py-2 rounded-lg ${
+              message.includes("successful")
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {message}
+          </p>
+        )}
       </div>
     </Layout>
   );
